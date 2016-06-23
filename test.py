@@ -1,0 +1,79 @@
+import os
+from urllib import request
+
+import podcastparser
+from pydub import AudioSegment
+
+
+def filenameize(fn):
+    """better filename characters"""
+    try:
+        os.mkdir('temp')
+    except FileExistsError:
+        assert os.path.isdir('temp')
+    return os.path.join('temp', fn.replace(':', '').replace('/', ''))
+
+
+class Remix:
+    def __init__(self, name, entries=()):
+        self.name = name
+        self.entries = list(entries)
+        self.feeds = {}
+        self.data = {}
+
+    def output(self):
+        self.get_feeds()
+        self.get_sources()
+        self.mix().export(self.name+'.mp3', format='mp3')
+
+    def get_feeds(self):
+        for feed_url in set(e.feed_url for e in self.entries):
+            print('getting feed', feed_url)
+            self.feeds[feed_url] = podcastparser.parse(feed_url, request.urlopen(feed_url))
+        print('done getting feeds')
+
+    def get_sources(self):
+        source_urls = set(e.source_url(self.feeds[e.feed_url])
+                          for e in self.entries)
+        for source_url in source_urls:
+            name = filenameize(source_url)
+            if not os.path.exists(name):
+                print('downloading ', source_url, '...')
+                with open(name, 'wb') as f:
+                    f.write(request.urlopen(source_url).read())
+            fmt = os.path.splitext(source_url)[1][1:]
+            self.data[source_url] = AudioSegment.from_file(name, fmt)
+
+    def mix(self):
+        full = None
+        for e in self.entries:
+            url = e.source_url(self.feeds[e.feed_url])
+            clip = self.data[url][e.start_time*1000:e.end_time*1000]
+            if not full:
+                full = clip
+            else:
+                full = full + clip
+        return full
+
+
+class Segment():
+    def __init__(self, feed_url, title, start_time, end_time):
+        self.feed_url = podcastparser.normalize_feed_url(feed_url)
+        self.title = title
+        self.start_time = start_time
+        self.end_time = end_time
+
+    def source_url(self, parsed_feed):
+        (ep,) = [ep for ep in parsed_feed['episodes']
+                 if ep['title'] == self.title]
+        return ep['enclosures'][0]['url']
+
+
+DemNow = 'http://www.democracynow.org/podcast.xml'
+
+e1 = Segment(DemNow, 'Democracy Now! 2016-06-22 Wednesday', 3, 5)
+e2 = Segment(DemNow, 'Democracy Now! 2016-06-22 Wednesday', 7, 10)
+
+r = Remix('best', [e1, e2])
+
+r.output()
