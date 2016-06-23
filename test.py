@@ -3,6 +3,7 @@ from urllib import request
 
 import podcastparser
 from pydub import AudioSegment
+from feedgen.feed import FeedGenerator
 
 
 def filenameize(fn):
@@ -14,6 +15,50 @@ def filenameize(fn):
     return os.path.join('temp', fn.replace(':', '').replace('/', ''))
 
 
+class RemixFeed:
+    def __init__(self, location, host):
+        self.location = location
+        self.host = host
+        self.episodes = []
+        self.fg = None
+
+    def create_generator(self):
+        fg = FeedGenerator()
+        fg.load_extension('podcast')
+
+        fg.id('http://lernfunk.de/media/654321')
+        fg.title('Some Testfeed')
+        fg.author({'name': 'John Doe', 'email': 'john@example.de'})
+        fg.link(href='http://example.com', rel='alternate')
+        fg.logo('http://ex.com/logo.jpg')
+        fg.subtitle('This is a cool feed!')
+        fg.link(href='http://larskiesow.de/test.atom', rel='self')
+        fg.language('en')
+        fg.podcast.itunes_category('Technology', 'Podcasting')
+        self.fg = fg
+
+    def add_remix(self, remix):
+        self.episodes.append(remix)
+
+    def output(self, location):
+        # create all the right files in a folder
+        os.mkdir(location)
+        self.create_generator()
+        for ep in self.episodes:
+            audio = ep.output(location)
+            encloc = os.path.join(location, ep.name) + '.mp3'
+            audio.export(encloc, format='mp3')
+            self.add_entry(ep, encloc)
+        self.fg.rss_file(os.path.join(location, 'rss.xml'))
+
+    def add_entry(self, remix, encloc):
+        fe = self.fg.add_entry()
+        fe.id(self.host+encloc)
+        fe.title(remix.name)
+        fe.description('Enjoy our first episode.')
+        fe.enclosure(self.host+encloc, 0, 'audio/mpeg')
+
+
 class Remix:
     def __init__(self, name, entries=()):
         self.name = name
@@ -21,10 +66,10 @@ class Remix:
         self.feeds = {}
         self.data = {}
 
-    def output(self):
+    def output(self, location=''):
         self.get_feeds()
         self.get_sources()
-        self.mix().export(self.name+'.mp3', format='mp3')
+        return self.mix()
 
     def get_feeds(self):
         for feed_url in set(e.feed_url for e in self.entries):
@@ -76,4 +121,9 @@ e2 = Segment(DemNow, 'Democracy Now! 2016-06-22 Wednesday', 7, 10)
 
 r = Remix('best', [e1, e2])
 
-r.output()
+rf = RemixFeed('greatfeed', 'http://localhost:8000/')
+
+rf.add_remix(r)
+
+rf.output('output')
+
