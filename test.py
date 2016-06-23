@@ -55,7 +55,7 @@ class RemixFeed:
         fe = self.fg.add_entry()
         fe.id(self.host+encloc)
         fe.title(remix.name)
-        fe.description('Enjoy our first episode.')
+        fe.description('Released under https://creativecommons.org/licenses/by-nc-sa/2.0/')
         fe.enclosure(self.host+encloc, 0, 'audio/mpeg')
 
 
@@ -109,15 +109,22 @@ class Segment():
         self.end_time = end_time
 
     def source_url(self, parsed_feed):
-        (ep,) = [ep for ep in parsed_feed['episodes']
-                 if ep['title'] == self.title]
+        try:
+            (ep,) = [ep for ep in parsed_feed['episodes']
+                     if ep['title'] == self.title]
+        except ValueError:
+            print('looking for', repr(self.title))
+            print("but couldn't find it among")
+            for ep in parsed_feed['episodes']:
+                print(repr(ep['title']))
+            raise
         return ep['enclosures'][0]['url']
 
 
-DemNow = 'http://www.democracynow.org/podcast.xml'
-
-e1 = Segment(DemNow, 'Democracy Now! 2016-06-22 Wednesday', 3, 5)
-e2 = Segment(DemNow, 'Democracy Now! 2016-06-22 Wednesday', 7, 10)
+FoF = "http://feastoffun.com/feed/"
+epname = 'FOF #2348 – Eat, Pray, Gay – 06.23.16'
+e1 = Segment(FoF, epname, 3, 10)
+e2 = Segment(FoF, epname, 30, 40)
 
 r = Remix('best', [e1, e2])
 
