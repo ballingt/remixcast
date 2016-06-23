@@ -73,7 +73,7 @@ class Remix:
 
     def get_feeds(self):
         for feed_url in set(e.feed_url for e in self.entries):
-            print('getting feed', feed_url)
+            print('downloading feed', feed_url)
             self.feeds[feed_url] = podcastparser.parse(feed_url, request.urlopen(feed_url))
         print('done getting feeds')
 
@@ -87,7 +87,9 @@ class Remix:
                 with open(name, 'wb') as f:
                     f.write(request.urlopen(source_url).read())
             fmt = os.path.splitext(source_url)[1][1:]
+            print('loading ', source_url, '...')
             self.data[source_url] = AudioSegment.from_file(name, fmt)
+        print('all required source files loaded')
 
     def mix(self):
         full = None
@@ -98,6 +100,7 @@ class Remix:
                 full = clip
             else:
                 full = full + clip
+        print('done creating mix')
         return full
 
 
