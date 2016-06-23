@@ -124,16 +124,16 @@ class Segment():
         return ep['enclosures'][0]['url']
 
 
-FoF = "http://feastoffun.com/feed/"
-epname = 'FOF #2348 – Eat, Pray, Gay – 06.23.16'
-e1 = Segment(FoF, epname, 3, 10)
-e2 = Segment(FoF, epname, 30, 40)
+if __name__ == '__main__':
+    FoF = "http://feastoffun.com/feed/"
+    epname = 'FOF #2348 – Eat, Pray, Gay – 06.23.16'
+    e1 = Segment(FoF, epname, 3, 10)
+    e2 = Segment(FoF, epname, 30, 40)
 
-r = Remix('best', [e1, e2])
+    r = Remix('best', [e1, e2])
 
-rf = RemixFeed('greatfeed', 'http://localhost:8000/')
+    rf = RemixFeed('greatfeed', 'http://localhost:8000/')
 
-rf.add_remix(r)
+    rf.add_remix(r)
 
-rf.output('output')
-
+    rf.output('output')
