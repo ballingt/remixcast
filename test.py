@@ -1,139 +1,150 @@
 import os
-from urllib import request
+import shutil
+import sys
+from urllib import parse as urlparse
+import zlib
 
+import requests
 import podcastparser
 from pydub import AudioSegment
 from feedgen.feed import FeedGenerator
 
+from remix import RemixFeed, Remix, Clip, Query
 
-def filenameize(fn):
+
+TEMP_DIR = 'temp'
+
+
+def downloaded_name(path):
     """better filename characters"""
+    _, ext = os.path.splitext(path)
     try:
-        os.mkdir('temp')
+        os.mkdir(TEMP_DIR)
     except FileExistsError:
-        assert os.path.isdir('temp')
-    return os.path.join('temp', fn.replace(':', '').replace('/', ''))
+        assert os.path.isdir(TEMP_DIR)
+    return os.path.join(TEMP_DIR, str(zlib.adler32(path.encode('utf8'))) + ext)
 
 
-class RemixFeed:
-    def __init__(self, location, host):
-        self.location = location
-        self.host = host
-        self.episodes = []
-        self.fg = None
-
-    def create_generator(self):
-        fg = FeedGenerator()
-        fg.load_extension('podcast')
-
-        fg.id('http://lernfunk.de/media/654321')
-        fg.title('Some Testfeed')
-        fg.author({'name': 'John Doe', 'email': 'john@example.de'})
-        fg.link(href='http://example.com', rel='alternate')
-        fg.logo('http://ex.com/logo.jpg')
-        fg.subtitle('This is a cool feed!')
-        fg.link(href='http://larskiesow.de/test.atom', rel='self')
-        fg.language('en')
-        fg.podcast.itunes_category('Technology', 'Podcasting')
-        self.fg = fg
-
-    def add_remix(self, remix):
-        self.episodes.append(remix)
-
-    def output(self, location):
-        # create all the right files in a folder
-        os.mkdir(location)
-        self.create_generator()
-        for ep in self.episodes:
-            audio = ep.output(location)
-            encloc = os.path.join(location, ep.name) + '.mp3'
-            audio.export(encloc, format='mp3')
-            self.add_entry(ep, encloc)
-        self.fg.rss_file(os.path.join(location, 'rss.xml'))
-
-    def add_entry(self, remix, encloc):
-        fe = self.fg.add_entry()
-        fe.id(self.host+encloc)
-        fe.title(remix.name)
-        fe.description('Released under https://creativecommons.org/licenses/by-nc-sa/2.0/')
-        fe.enclosure(self.host+encloc, 0, 'audio/mpeg')
-
-
-class Remix:
-    def __init__(self, name, entries=()):
-        self.name = name
-        self.entries = list(entries)
-        self.feeds = {}
-        self.data = {}
-
-    def output(self, location=''):
-        self.get_feeds()
-        self.get_sources()
-        return self.mix()
-
-    def get_feeds(self):
-        for feed_url in set(e.feed_url for e in self.entries):
-            print('downloading feed', feed_url)
-            self.feeds[feed_url] = podcastparser.parse(feed_url, request.urlopen(feed_url))
-        print('done getting feeds')
-
-    def get_sources(self):
-        source_urls = set(e.source_url(self.feeds[e.feed_url])
-                          for e in self.entries)
-        for source_url in source_urls:
-            name = filenameize(source_url)
-            if not os.path.exists(name):
-                print('downloading ', source_url, '...')
-                with open(name, 'wb') as f:
-                    f.write(request.urlopen(source_url).read())
-            fmt = os.path.splitext(source_url)[1][1:]
-            print('loading ', source_url, '...')
-            self.data[source_url] = AudioSegment.from_file(name, fmt)
-        print('all required source files loaded')
-
-    def mix(self):
-        full = None
-        for e in self.entries:
-            url = e.source_url(self.feeds[e.feed_url])
-            clip = self.data[url][e.start_time*1000:e.end_time*1000]
-            if not full:
-                full = clip
+def downloaded(url):
+    name = downloaded_name(url)
+    if not os.path.exists(name):
+        print('downloading ', url, '...')
+        with open(name, 'wb') as f:
+            response = requests.get(url, stream=True)
+            try:
+                total_length = int(response.headers.get('content-length'))
+            except TypeError:
+                f.write(response.content)
             else:
-                full = full + clip
-        print('done creating mix')
-        return full
+                dl = 0
+                for data in response.iter_content():
+                    dl += len(data)
+                    f.write(data)
+                    done = int(50 * dl / total_length)
+                    sys.stdout.write("\r[%s%s]" % ('=' * done, ' ' * (50-done)))
+                    sys.stdout.flush()
+    return name
 
 
-class Segment():
-    def __init__(self, feed_url, title, start_time, end_time):
-        self.feed_url = podcastparser.normalize_feed_url(feed_url)
-        self.title = title
-        self.start_time = start_time
-        self.end_time = end_time
+def load_feed(path):
+    print('loading ', path, '...')
+    return podcastparser.parse(path, downloaded(path))
 
-    def source_url(self, parsed_feed):
-        try:
-            (ep,) = [ep for ep in parsed_feed['episodes']
-                     if ep['title'] == self.title]
-        except ValueError:
-            print('looking for', repr(self.title))
-            print("but couldn't find it among")
-            for ep in parsed_feed['episodes']:
-                print(repr(ep['title']))
-            raise
-        return ep['enclosures'][0]['url']
+
+def load_audio(path):
+    fmt = os.path.splitext(path)[1][1:]
+    print('loading ', path, '...')
+    return AudioSegment.from_file(downloaded(path), fmt)
+
+
+def create_mixed_feed(remix_feed, location, output_dir):
+    """Create an rss feed for mixed sessions.
+
+    location is the hostname and folder, like 'http://abc.com/remix/
+    output_dir is the folder to write mixed sessions to
+    """
+
+    fg = FeedGenerator()
+    fg.load_extension('podcast')
+
+    fg.id(location)
+    fg.title(remix_feed.title)
+    fg.subtitle('this is only a remix')
+    fg.link(href=urlparse.urljoin(location, 'feed.rss'), rel='self')
+
+    if os.path.exists(output_dir):
+        print('output directory exists, overwriting...')
+        shutil.rmtree(output_dir)
+    os.mkdir(output_dir)
+
+    for remix in remix_feed.sessions:
+        fe = fg.add_entry()
+
+        mixed = mix_session(remix)
+        mixed.export(os.path.join(output_dir, remix.title), format='mp3')
+
+        fe.id(urlparse.urljoin(location, remix.title))
+        fe.title(remix.title)
+        fe.description('A remix of other things')
+        fe.enclosure(urlparse.urljoin(location, remix.title), 0, 'audio/mpeg')
+
+    fg.rss_file(os.path.join(output_dir, 'rss.xml'), pretty=True)
+
+
+def get_session_feeds(session):
+    return {feed_url: load_feed(feed_url)
+            for feed_url in {c.feed_url for c in session.clips}}
+
+
+def run_query(query, feed):
+    if query.key == 'title':
+        (ep,) = [ep for ep in feed['episodes']
+                 if ep['title'] == query.value]
+        return ep
+    raise ValueError("Other query methods not yet implemnted")
+
+
+def find_source_url(feed, query):
+    ep = run_query(query, feed)
+    return ep['enclosures'][0]['url']
+
+
+def get_session_sources(session, feeds):
+    source_urls = set(find_source_url(feeds[clip.feed_url], clip.query)
+                      for clip in session.clips)
+    data = {source_url: load_audio(source_url)
+            for source_url in source_urls}
+    print('all required source files loaded')
+    return data
+
+
+def mix_session(session):
+    feeds = get_session_feeds(session)
+    audio = get_session_sources(session, feeds)
+
+    full = None
+    for clip in session.clips:
+        url = find_source_url(feeds[clip.feed_url], clip.query)
+        clip = audio[url][clip.start_time*1000:clip.end_time*1000]
+        if not full:
+            full = clip
+        else:
+            full = full + clip
+    print('done creating mix')
+    return full
 
 
 if __name__ == '__main__':
     FoF = "http://feastoffun.com/feed/"
-    epname = 'FOF #2348 – Eat, Pray, Gay – 06.23.16'
-    e1 = Segment(FoF, epname, 3, 10)
-    e2 = Segment(FoF, epname, 30, 40)
+    q = Query('title', 'FOF #2348 – Eat, Pray, Gay – 06.23.16')
+    c1 = Clip(FoF, q, 3, 10)
+    c2 = Clip(FoF, q, 30, 40)
 
-    r = Remix('best', [e1, e2])
+    r = Remix('best')
+    r.add_clip(c1)
+    r.add_clip(c2)
 
-    rf = RemixFeed('greatfeed', 'http://localhost:8000/')
+    rf = RemixFeed('greatfeed')
 
     rf.add_remix(r)
-
-    rf.output('output')
+    create_mixed_feed(rf, 'http://localhost:8000/', 'output')

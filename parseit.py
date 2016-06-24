@@ -1,5 +1,15 @@
+"""
+
+session = episode of remixcast
+section = contiguous portion of a session using same source
+play_stmt = clip
+
+//TODO some renaming
+
+"""
 from parsimonious.grammar import Grammar
 from parsimonious.nodes import NodeVisitor
+
 
 grammar = Grammar(
     r"""
@@ -58,38 +68,6 @@ class RemixVisitor(NodeVisitor):
     def generic_visit(self, node, visited_children):
         return visited_children
 
-
-class Section:
-    def __init__(self, source):
-        self.source = source
-        self.segments = []
-
-    def add_segment(self, segment):
-        self.segments.append(segment)
-
-    def __str__(self):
-        s = 'an episode of a podcast\n'
-        for seg in self.segments:
-            s += 'play from ? to ?'
-        return s
-
-
-class RemixSession:
-    def __init__(self):
-        self.sections = []
-
-    def add_section(self, section):
-        self.sections.append(section)
-
-    def __str__(self):
-        s = 'Remix Session:\n'
-        if self.version:
-            s += 'remix version '+self.version+'\n\n'
-
-        for section in self.sections:
-            s += str(section)
-            s += '\n'
-        return s
 
 
 example = """

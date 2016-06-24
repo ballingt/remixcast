@@ -2,3 +2,4 @@ pydub==0.16.4
 podcastparser==0.6.0
 feedgen==0.3.2
 parsimonious==0.6.2
+requests==2.9.1
