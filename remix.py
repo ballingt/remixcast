@@ -16,6 +16,10 @@ class RemixFeed:
         self.sessions.append(remix)
 
 
+def indent(s, n=2):
+    return '\n'.join([' '*n+line for line in s.split('\n')])
+
+
 class Remix:
     def __init__(self, title):
         self.title = title
@@ -25,20 +29,23 @@ class Remix:
         self.clips.append(clip)
 
     def __str__(self):
-        s = 'Remix Session:\n'
+        s = ''
         if self.version:
             s += 'remix version '+self.version+'\n\n'
 
-        for section in self.sections:
-            s += str(section)
+        for clip in self.clips:
+            s += str(clip)
             s += '\n'
-        return s
+        return 'Remix Session:\n' + indent(s)
 
 
 class Query:
     def __init__(self, key, value):
         self.key = key
         self.value = value
+
+    def __str__(self):
+        return '{}="{}"'.format(self.key, self.value)
 
 
 class Clip:
@@ -60,4 +67,11 @@ class Clip:
             raise
         return ep['enclosures'][0]['url']
 
+    def __str__(self):
+        s = 'Clip of {} of {}\nfrom {} to {}'.format(
+                self.query,
+                self.feed_url,
+                self.start_time,
+                self.end_time)
+        return s
 

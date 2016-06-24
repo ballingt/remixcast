@@ -10,6 +10,7 @@ play_stmt = clip
 from parsimonious.grammar import Grammar
 from parsimonious.nodes import NodeVisitor
 
+from remix import Remix, Query, Clip
 
 grammar = Grammar(
     r"""
@@ -37,26 +38,47 @@ grammar = Grammar(
 
 class RemixVisitor(NodeVisitor):
     def visit_session(self, session, children):
-        _, version, _, sections, _ = children
-        remix = RemixSession()
+        _, version, _, clips, _ = children
+        remix = Remix('TODO add title to grammar')
         if version:
             remix.version = version[0]
-        for section in sections:
-            remix.add_section(section)
+        for clip in clips:
+            remix.add_clip(clip)
         return remix
 
     def visit_sections(self, ast, children):
-        (sec, ugh) = children
-        sections = [sec] + [x[1] for x in ugh]
+        (clips, ugh) = children
+        sections = clips + [clip for x in ugh for clip in x[1]]
         return sections
 
     def visit_section(self, section, children):
         print('visit_section got:', children)
-        source, _, play_stmt, ugh = children
+        (feed_url, query), _, play_stmt, ugh = children
+
         play_stmts = [play_stmt] + [x[1] for x in ugh]
-        print(play_stmts)
-        s = Section(source)
-        return s
+        clips = [Clip(feed_url, query, p[0], p[1])
+                 for p in play_stmts]
+        print(clips)
+        return clips
+
+    def visit_source(self, ast, children):
+        return ('http://podcast.com', Query('title', 'asdf'))
+
+
+    def visit_play_stmt(self, ast, children):
+        print(children)
+        print('while parsing play_stmt found children', children)
+        start_time = 1
+        end_time = 2
+        return (start_time, end_time)
+
+    def visit_duration(self, ast, children):
+        _, _, t1, _, _, _, t2 = children
+        print('found', t1, t2)
+
+    def visit_time(self, ast, children):
+        print('in visit_time found', children)
+        return 'TIME!'
 
     def visit_version(self, version, children):
         print('version:', children)
@@ -88,4 +110,3 @@ print(ast)
 v = RemixVisitor()
 
 print(v.visit(ast))
-
