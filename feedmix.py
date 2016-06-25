@@ -154,14 +154,10 @@ def example():
     create_mixed_feed(rf, 'http://localhost:8000/', 'output')
 
 
-def serve_folder(path):
+def serve_folder(path, port=8000):
     os.chdir(path)
     import http.server
-    import socket
     handler_class = http.server.SimpleHTTPRequestHandler
-    local_ip = socket.gethostbyname(socket.gethostname())
-    port = 8000
-    print('http://{}:{}/rss.xml'.format(local_ip, port))
     http.server.test(HandlerClass=handler_class, port=port)
 
 
@@ -171,7 +167,11 @@ if __name__ == '__main__':
         remix = remix_from_string(open(filename).read())
         rf.add_remix(remix)
 
-    import socket
-    local_ip = socket.gethostbyname(socket.gethostname())
-    create_mixed_feed(rf, 'http://{}:8000/'.format(local_ip), 'output')
+    host = 'thomasballinger.com'
+    port = 8000
+    authority = '{}:{}/'.format(host, port)
+    location = 'http://'+authority
+
+    print('{}/rss.xml'.format(location))
+    create_mixed_feed(rf, location, 'output')
     serve_folder('output')
