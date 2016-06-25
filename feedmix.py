@@ -75,7 +75,7 @@ def create_mixed_feed(remix_feed, location, output_dir):
     fg.id(location)
     fg.title(remix_feed.title)
     fg.subtitle('this is only a remix')
-    fg.link(href=urlparse.urljoin(location, 'feed.rss'), rel='self')
+    fg.link(href=urlparse.urljoin(location, 'rss.xml'), rel='self')
 
     if os.path.exists(output_dir):
         print('output directory exists, overwriting...')
