@@ -87,10 +87,10 @@ def create_mixed_feed(remix_feed, location, output_dir):
         mixed = mix_session(remix)
         mixed.export(os.path.join(output_dir, remix.title), format='mp3')
 
-        fe.id(urlparse.urljoin(location, remix.title))
+        fe.id(urlparse.urljoin(location, urlparse.quote(remix.title)))
         fe.title(remix.title)
         fe.description('A remix of other things')
-        fe.enclosure(urlparse.urljoin(location, remix.title), 0, 'audio/mpeg')
+        fe.enclosure(urlparse.urljoin(location, urlparse.quote(remix.title)), 0, 'audio/mpeg')
 
     fg.rss_file(os.path.join(output_dir, 'rss.xml'), pretty=True)
 
