@@ -110,23 +110,29 @@ class RemixVisitor(NodeVisitor):
         return visited_children
 
 
+def remix_from_string(s):
+    ast = grammar.parse(s)
+    v = RemixVisitor()
+    return v.visit(ast)
 
-example = """
-remix version 0.1
 
-episode 17 of "http://mypodcast.com/feed.rss"
-play from 0:10 to 0:15
-episode 12 of "http://mypodcast.com/feed.rss"
-play
-episode 12 of http://mypodcast.com/feed.rss
-play
-"""
+def example():
+    example = """
+    remix version 0.1
 
-#import pudb; pudb.set_trace()
-#ast = grammar.parse(example)
-#print(ast)
+    episode 17 of "http://mypodcast.com/feed.rss"
+    play from 0:10 to 0:15
+    episode 12 of "http://mypodcast.com/feed.rss"
+    play
+    episode 12 of http://mypodcast.com/feed.rss
+    play
+    """
 
-v = RemixVisitor()
+    ast = grammar.parse(example)
+    print(ast)
+    v = RemixVisitor()
+    print(v.visit(ast))
+
 
 if __name__ == '__main__':
     args = sys.argv[1:]

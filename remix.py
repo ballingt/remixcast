@@ -4,6 +4,7 @@ Classes for remixes and components of
 
 """
 import os
+import re
 
 
 class RemixFeed:
@@ -50,12 +51,47 @@ class Query:
         return '{}="{}"'.format(self.key, self.value)
 
 
+def parse_time(t):
+    if t in ('beginning', 'end'):
+        return None
+    pattern = re.compile(r"""
+            ^
+            (?:
+                (?P<hours>\d+)
+                :)?
+            (?P<minutes>\d\d?)
+            :
+            (?P<seconds>\d\d?)
+            (?:
+                [.]
+                (?P<decimal>d+))?
+            $
+            """, re.VERBOSE)
+    parts = pattern.search(t).groupdict('0')
+    hours_part = 3600 * int(parts['hours'])
+    mins_part = 60 * int(parts['minutes'])
+    secs_part = int(parts['seconds'])
+    ms_part = float('0.'+parts['decimal'].ljust(3, '0'))
+    print(hours_part, mins_part, secs_part, ms_part)
+    return hours_part + mins_part + secs_part + ms_part
+
+
 class Clip:
     def __init__(self, feed_url, query, start_time, end_time):
         self.feed_url = feed_url
         self.query = query
         self.start_time = start_time
         self.end_time = end_time
+
+    @property
+    def start_time_s(self):
+        """Time seconds, "beginning" and "end" become None"""
+        return parse_time(self.start_time)
+
+    @property
+    def end_time_s(self):
+        """Time seconds, "beginning" and "end" become None"""
+        return parse_time(self.end_time)
 
     def source_url(self, parsed_feed):
         try:

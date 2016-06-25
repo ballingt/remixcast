@@ -10,6 +10,7 @@ from pydub import AudioSegment
 from feedgen.feed import FeedGenerator
 
 from remix import RemixFeed, Remix, Clip, Query
+from fastparser import remix_from_string
 
 
 TEMP_DIR = 'temp'
@@ -37,12 +38,15 @@ def downloaded(url):
                 f.write(response.content)
             else:
                 dl = 0
-                for data in response.iter_content():
+                last_done = -1
+                for data in response.iter_content(4096):
                     dl += len(data)
                     f.write(data)
                     done = int(50 * dl / total_length)
-                    sys.stdout.write("\r[%s%s]" % ('=' * done, ' ' * (50-done)))
-                    sys.stdout.flush()
+                    if done != last_done:
+                        last_done = done
+                        sys.stdout.write("\r[%s%s]" % ('=' * done, ' ' * (50-done)))
+                        sys.stdout.flush()
     return name
 
 
@@ -125,7 +129,7 @@ def mix_session(session):
     full = None
     for clip in session.clips:
         url = find_source_url(feeds[clip.feed_url], clip.query)
-        clip = audio[url][clip.start_time*1000:clip.end_time*1000]
+        clip = audio[url][clip.start_time_s*1000:clip.end_time_s*1000]
         if not full:
             full = clip
         else:
@@ -134,7 +138,7 @@ def mix_session(session):
     return full
 
 
-if __name__ == '__main__':
+def example():
     FoF = "http://feastoffun.com/feed/"
     q = Query('title', 'FOF #2348 – Eat, Pray, Gay – 06.23.16')
     c1 = Clip(FoF, q, 3, 10)
@@ -148,3 +152,26 @@ if __name__ == '__main__':
 
     rf.add_remix(r)
     create_mixed_feed(rf, 'http://localhost:8000/', 'output')
+
+
+def serve_folder(path):
+    os.chdir(path)
+    import http.server
+    import socket
+    handler_class = http.server.SimpleHTTPRequestHandler
+    local_ip = socket.gethostbyname(socket.gethostname())
+    port = 8000
+    print('http://{}:{}/rss.xml'.format(local_ip, port))
+    http.server.test(HandlerClass=handler_class, port=port)
+
+
+if __name__ == '__main__':
+    rf = RemixFeed('testfeed')
+    for filename in sys.argv[1:]:
+        remix = remix_from_string(open(filename).read())
+        rf.add_remix(remix)
+
+    import socket
+    local_ip = socket.gethostbyname(socket.gethostname())
+    create_mixed_feed(rf, 'http://{}:8000/'.format(local_ip), 'output')
+    serve_folder('output')
