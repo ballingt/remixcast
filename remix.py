@@ -45,7 +45,9 @@ class Query:
         self.value = value
 
     def __str__(self):
-        return '{}="{}"'.format(self.key, self.value)
+        if self.key == 'episode':
+            return 'episode {}'.format(self.value)
+        return '{}={}'.format(self.key, self.value)
 
 
 class Clip:
@@ -68,7 +70,7 @@ class Clip:
         return ep['enclosures'][0]['url']
 
     def __str__(self):
-        s = 'Clip of {} of {}\nfrom {} to {}'.format(
+        s = '{} of {}\nfrom {} to {}'.format(
                 self.query,
                 self.feed_url,
                 self.start_time,
