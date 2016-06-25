@@ -47,7 +47,7 @@ class Query:
     def __str__(self):
         if self.key == 'episode':
             return 'episode {}'.format(self.value)
-        return '{}={}'.format(self.key, self.value)
+        return '{}="{}"'.format(self.key, self.value)
 
 
 class Clip:

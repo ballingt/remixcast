@@ -7,6 +7,8 @@ play_stmt = clip
 //TODO some renaming
 
 """
+import sys
+
 from parsimonious.grammar import Grammar
 from parsimonious.nodes import NodeVisitor
 
@@ -25,7 +27,7 @@ grammar = Grammar(
     episode_query = q_by_title / q_by_number
     q_by_title    = "title" ws* "=" ws* word
     word          = quoted / unquoted
-    quoted        = ~'["].*["]'
+    quoted        = ~'["][^"]*["]'
     unquoted      = ~r'[^\s]+'
     q_by_number   = "episode" ws+ int
     play_stmt     = "play" (ws+ duration)?
@@ -68,6 +70,10 @@ class RemixVisitor(NodeVisitor):
         _, _, number = children
         return Query('episode', number)
 
+    def visit_q_by_title(self, ast, children):
+        _, _, _, _, title = children
+        return Query('title', title)
+
     def visit_feed_url(self, ast, _):
         return ast.text
 
@@ -75,7 +81,6 @@ class RemixVisitor(NodeVisitor):
         return int(ast.text)
 
     def visit_word(self, ast, _):
-        print("word match:", ast.text)
         if ast.text.startswith('"') and ast.text.endswith('"'):
             return ast.text[1:-1]
         return ast.text
@@ -118,10 +123,12 @@ play
 """
 
 #import pudb; pudb.set_trace()
-ast = grammar.parse(example)
+#ast = grammar.parse(example)
 #print(ast)
 
 v = RemixVisitor()
 
-print(v.visit(ast))
-
+if __name__ == '__main__':
+    args = sys.argv[1:]
+    ast = grammar.parse(open(args[0]).read())
+    print(v.visit(ast))
