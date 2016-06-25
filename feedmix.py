@@ -1,3 +1,4 @@
+import argparse
 import os
 import shutil
 import sys
@@ -154,24 +155,33 @@ def example():
     create_mixed_feed(rf, 'http://localhost:8000/', 'output')
 
 
-def serve_folder(path, port=8000):
+def serve_folder(path, port=8000, bind='localhost'):
     os.chdir(path)
     import http.server
     handler_class = http.server.SimpleHTTPRequestHandler
-    http.server.test(HandlerClass=handler_class, port=port)
+    http.server.test(HandlerClass=handler_class, port=port, bind=bind)
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--bind', '-b', default='localhost', metavar='ADDRESS',
+                        help='Specify alternate bind address '
+                             '[default: all interfaces]')
+    parser.add_argument('port', action='store',
+                        default=8000, type=int,
+                        nargs='?',
+                        help='Specify alternate port [default: 8000]')
+    parser.add_argument('remixes', nargs='+', metavar='FILE',
+                        help='Remix files to serve in feed')
+    args = parser.parse_args()
+
     rf = RemixFeed('testfeed')
-    for filename in sys.argv[1:]:
+    for filename in args.remixes:
         remix = remix_from_string(open(filename).read())
         rf.add_remix(remix)
 
-    host = 'thomasballinger.com'
-    port = 8000
-    authority = '{}:{}/'.format(host, port)
-    location = 'http://'+authority
-
-    print('{}/rss.xml'.format(location))
+    location = 'http://{}:{}'.format(args.bind, args.port)
     create_mixed_feed(rf, location, 'output')
-    serve_folder('output')
+
+    print(urlparse.urljoin(location, 'rss.xml'))
+    serve_folder('output', port=args.port, bind=args.bind)

@@ -1,3 +1,4 @@
 *.mp3
 temp
 .python-version
+*.pyc
