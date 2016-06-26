@@ -1,0 +1,7 @@
+remix version 0.1
+
+title = "FOF #2348 – Eat, Pray, Gay – 06.23.16" of "http://feastoffun.com/feed/"
+play from beginning to 0:04  # intro music, then skip introduction
+play from 0:10 to 0:11.1     # Fausto says "gettin' jiggy with it"
+play from 3:26 to 1:06:38    # Entire conversation with George St. George
+play from 1:07:40 to end     # Farewell and outro music
