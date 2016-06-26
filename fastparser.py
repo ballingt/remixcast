@@ -12,17 +12,18 @@ import sys
 from parsimonious.grammar import Grammar
 from parsimonious.nodes import NodeVisitor
 
-from remix import Remix, Query, Clip
+from remix import Remix, Query, Clip, parse_time
 
 grammar = Grammar(
     r"""
-    session       = _ version? _ sections _
+    session       = _* version? _* sections _*
     sections      = section (nl section)*
-    ws            = (" " / "\t")+
-    nl            = ~r"\s*\n\s*"
-    _             = ~r"\s*"
+    ws            = (" " / "\t")
+    nl            = ws* comment? "\n" _*
+    _             = ~r"\s+" / comment
+    comment       = "#" ~r".*"
     version       = "remix version" ws+ versionnum nl
-    section       = source "\n" play_stmt ("\n" play_stmt)*
+    section       = source nl play_stmt (nl play_stmt)*
     source        = episode_query ws+ "of" ws+ word
     episode_query = q_by_title / q_by_number
     q_by_title    = "title" ws* "=" ws* word
@@ -32,7 +33,7 @@ grammar = Grammar(
     q_by_number   = "episode" ws+ int
     play_stmt     = "play" (ws+ duration)?
     duration      = "from" ws+ time ws+ "to" ws+ time
-    time          = ~r"(?:\d+:)?\d\d?:\d\d?(?:[.]d+)?" / "beginning" / "end"
+    time          = ~r"(?:\d+:)?\d\d?:\d\d?(?:[.]\d+)?" / "beginning" / "end"
     float         = ~r"(\d?[.]\d+)|\d+"
     int           = ~r"\d+"
     versionnum    = ~r"\d+(?:[.]\d+)*"
@@ -48,6 +49,9 @@ class RemixVisitor(NodeVisitor):
         for clip in clips:
             remix.add_clip(clip)
         return remix
+
+    def visit_nl(self, ast, _):
+        return _
 
     def visit_sections(self, ast, children):
         (clips, ugh) = children
@@ -97,6 +101,7 @@ class RemixVisitor(NodeVisitor):
         return [t1, t2]
 
     def visit_time(self, ast, children):
+        parse_time(ast.text)
         return ast.text
 
     def visit_version(self, version, children):
@@ -137,4 +142,5 @@ def example():
 if __name__ == '__main__':
     args = sys.argv[1:]
     ast = grammar.parse(open(args[0]).read())
+    v = RemixVisitor()
     print(v.visit(ast))

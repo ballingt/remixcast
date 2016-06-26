@@ -52,6 +52,10 @@ class Query:
 
 
 def parse_time(t):
+    """
+
+    >>> parse_time('0:20.1')
+    """
     if t in ('beginning', 'end'):
         return None
     pattern = re.compile(r"""
@@ -64,7 +68,7 @@ def parse_time(t):
             (?P<seconds>\d\d?)
             (?:
                 [.]
-                (?P<decimal>d+))?
+                (?P<decimal>\d+))?
             $
             """, re.VERBOSE)
     parts = pattern.search(t).groupdict('0')
@@ -72,7 +76,6 @@ def parse_time(t):
     mins_part = 60 * int(parts['minutes'])
     secs_part = int(parts['seconds'])
     ms_part = float('0.'+parts['decimal'].ljust(3, '0'))
-    print(hours_part, mins_part, secs_part, ms_part)
     return hours_part + mins_part + secs_part + ms_part
 
 
@@ -113,3 +116,6 @@ class Clip:
                 self.end_time)
         return s
 
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
