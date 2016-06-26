@@ -93,7 +93,7 @@ def mix_session(session):
     full = None
     for clip in session.clips:
         url = find_source_url(feeds[clip.feed_url], clip.query)
-        clip = audio[url][clip.start_time_s*1000:clip.end_time_s*1000]
+        clip = audio[url][clip.start_time_ms:clip.end_time_ms]
         if not full:
             full = clip
         else:
@@ -126,4 +126,5 @@ if __name__ == '__main__':
 
     remix = remix_from_string(open(args.remix).read())
     mixed = mix_session(remix)
+    print('writing mixed audio file...')
     mixed.export(args.output, format='mp3')

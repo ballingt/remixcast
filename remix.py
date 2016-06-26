@@ -55,6 +55,7 @@ def parse_time(t):
     """
 
     >>> parse_time('0:20.1')
+    20100
     """
     if t in ('beginning', 'end'):
         return None
@@ -68,15 +69,15 @@ def parse_time(t):
             (?P<seconds>\d\d?)
             (?:
                 [.]
-                (?P<decimal>\d+))?
+                (?P<decimal>\d\d?\d?))?
             $
             """, re.VERBOSE)
     parts = pattern.search(t).groupdict('0')
     hours_part = 3600 * int(parts['hours'])
     mins_part = 60 * int(parts['minutes'])
     secs_part = int(parts['seconds'])
-    ms_part = float('0.'+parts['decimal'].ljust(3, '0'))
-    return hours_part + mins_part + secs_part + ms_part
+    ms_part = int(parts['decimal'].ljust(3, '0'))
+    return hours_part*1000 + mins_part*1000 + secs_part*1000 + ms_part
 
 
 class Clip:
@@ -87,12 +88,12 @@ class Clip:
         self.end_time = end_time
 
     @property
-    def start_time_s(self):
+    def start_time_ms(self):
         """Time seconds, "beginning" and "end" become None"""
         return parse_time(self.start_time)
 
     @property
-    def end_time_s(self):
+    def end_time_ms(self):
         """Time seconds, "beginning" and "end" become None"""
         return parse_time(self.end_time)
 
